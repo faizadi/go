@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DevDocGen - Enterprise App</title>
-
-  <!-- CDN Dependencies -->
+  <title>DevDocGen Enterprise</title>
+  
+  <!-- Stack Dependencies (CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/ag-charts-community/dist/ag-charts-community.min.js"></script>
@@ -15,110 +15,189 @@
   <script>
     tailwind.config = {
       darkMode: 'class',
-      theme: { extend: { colors: { primary: '#2563eb' } } }
+      theme: { extend: { colors: { primary: '#1A237E', secondary: '#2563EB', darksurf: '#111827' } } }
     }
   </script>
   <style>
-    /* Material UI Elevations & Transitions */
-    .btn { @apply px-4 py-2 rounded shadow transition duration-200 transform hover:scale-105 active:scale-95; }
-    .btn-primary { @apply bg-primary text-white hover:bg-blue-700; }
-    .glass-panel { @apply bg-white dark:bg-gray-800 shadow-lg rounded-xl border border-gray-200 dark:border-gray-700; }
-    #ag-grid-container { height: 400px; width: 100%; }
+    /* Material UI Principles */
+    .btn { @apply px-4 py-2 rounded-lg font-medium transition duration-200 shadow hover:shadow-md transform active:scale-95 flex items-center justify-center gap-2; }
+    .btn-primary { @apply bg-secondary text-white hover:bg-blue-700; }
+    .card { @apply bg-white dark:bg-gray-800 shadow-md rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden; }
+    .input-field { @apply w-full p-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary dark:text-white transition-all; }
+    #grid-documents, #grid-templates { height: 500px; width: 100%; }
+    .spa-view { display: none; animation: fadeIn 0.3s ease-in-out; }
+    .spa-view.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 transition-colors duration-300 antialiased selection:bg-secondary selection:text-white">
 
-  <!-- Login View -->
-  <div id="login-view" class="min-h-screen flex items-center justify-center p-4">
-    <div class="glass-panel p-8 w-full max-w-md">
-      <h2 class="text-2xl font-bold text-center mb-6">DevDocGen Login</h2>
-      <input type="email" id="log-email" placeholder="Email" class="w-full mb-4 p-3 border rounded dark:bg-gray-700 dark:border-gray-600 outline-none focus:border-primary">
-      <input type="password" id="log-pass" placeholder="Password" class="w-full mb-6 p-3 border rounded dark:bg-gray-700 dark:border-gray-600 outline-none focus:border-primary">
-      <button onclick="app.login()" class="btn btn-primary w-full">Sign In</button>
+  <!-- AUTH VIEW -->
+  <div id="view-login" class="spa-view active min-h-screen flex items-center justify-center p-4">
+    <div class="card p-8 w-full max-w-md relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-2 bg-primary"></div>
+      <h2 class="text-3xl font-bold text-center text-primary dark:text-blue-400 mb-2">DevDocGen</h2>
+      <p class="text-center text-gray-500 dark:text-gray-400 mb-8 text-sm">Enterprise System Document Generator</p>
+      <form id="form-login" onsubmit="app.login(event)">
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">Email Address</label>
+          <input type="email" id="log-email" class="input-field" required value="admin@devdoc.com">
+        </div>
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-1">Password</label>
+          <input type="password" id="log-pass" class="input-field" required value="Admin123!">
+        </div>
+        <button type="submit" id="btn-login" class="btn btn-primary w-full"><i class="fas fa-sign-in-alt"></i> Secure Login</button>
+      </form>
     </div>
   </div>
 
-  <!-- Main View (SPA) -->
-  <div id="main-view" class="hidden min-h-screen flex flex-col md:flex-row">
-
-    <!-- Sidebar -->
-    <aside class="w-full md:w-64 glass-panel m-2 flex flex-col rounded-xl overflow-hidden">
-      <div class="p-4 bg-primary text-white font-bold flex justify-between items-center">
-        <span><i class="fas fa-layer-group mr-2"></i> DevDocGen</span>
-        <button onclick="app.toggleTheme()" class="md:hidden"><i class="fas fa-moon"></i></button>
+  <!-- MAIN APP LAYOUT -->
+  <div id="view-main" class="spa-view min-h-screen flex flex-col md:flex-row">
+    
+    <!-- Dynamic Sidebar -->
+    <aside id="sidebar" class="w-full md:w-64 bg-white dark:bg-gray-800 border-r dark:border-gray-700 flex flex-col shadow-lg z-20">
+      <div class="h-16 flex items-center justify-between px-6 border-b dark:border-gray-700 bg-primary text-white">
+        <span class="font-bold text-lg"><i class="fas fa-layer-group mr-2"></i> DevDocGen</span>
       </div>
-      <nav id="sidebar-nav" class="flex-1 p-2 space-y-1">
-        <!-- Rendered by JS based on Role -->
+      <div class="p-4 border-b dark:border-gray-700">
+        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Active User</p>
+        <p id="user-name" class="font-semibold text-sm truncate">User Name</p>
+        <span id="user-role" class="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs rounded-full">Role</span>
+      </div>
+      <nav id="nav-menu" class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+        <!-- Rendered by JS -->
       </nav>
-      <div class="p-4 border-t dark:border-gray-700 text-sm">
-        <p id="user-info" class="font-bold mb-2">User</p>
-        <button onclick="app.logout()" class="text-red-500 hover:text-red-700 w-full text-left"><i class="fas fa-sign-out-alt mr-2"></i>Logout</button>
+      <div class="p-4 border-t dark:border-gray-700">
+        <button onclick="app.logout()" class="w-full text-left text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-gray-700 px-3 py-2 rounded transition-colors text-sm font-medium"><i class="fas fa-sign-out-alt w-5"></i> Terminate Session</button>
       </div>
     </aside>
 
-    <!-- Content Area -->
-    <main class="flex-1 p-4 overflow-y-auto">
-      <div class="flex justify-between items-center mb-6">
-        <h1 id="page-title" class="text-2xl font-bold">Dashboard</h1>
-        <button onclick="app.toggleTheme()" class="hidden md:block btn bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"><i class="fas fa-adjust"></i> Toggle Theme</button>
-      </div>
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden">
+      <!-- Header -->
+      <header class="h-16 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex items-center justify-between px-6 shadow-sm z-10">
+        <h1 id="page-title" class="text-xl font-bold text-gray-800 dark:text-white">Workspace</h1>
+        <div class="flex items-center gap-4">
+          <button onclick="app.toggleTheme()" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+            <i class="fas fa-moon dark:hidden"></i><i class="fas fa-sun hidden dark:block"></i>
+          </button>
+        </div>
+      </header>
 
-      <!-- Sections -->
-      <div id="section-dashboard" class="spa-section">
-        <div class="glass-panel p-4 h-96" id="dashboard-chart"></div>
-      </div>
-
-      <div id="section-generator" class="spa-section hidden">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div class="glass-panel p-6">
-            <h3 class="font-bold mb-4">1. Setup Dokumen</h3>
-            <label class="block mb-2 text-sm">Judul Dokumen</label>
-            <input type="text" id="doc-title" class="w-full mb-4 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 outline-none">
-            <label class="block mb-2 text-sm">Pilih Template (RFC, BRD, dll)</label>
-            <select id="doc-template-select" onchange="app.renderDynamicForm()" class="w-full mb-4 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 outline-none">
-              <option value="">-- Pilih --</option>
-            </select>
-            <div id="dynamic-form-container" class="space-y-3 border-t dark:border-gray-700 pt-4 mt-2"></div>
-            <button onclick="app.generateDocument()" class="btn btn-primary w-full mt-6"><i class="fas fa-magic mr-2"></i> Generate & Save to Drive</button>
+      <!-- Scrollable Area -->
+      <div class="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900">
+        
+        <!-- DASHBOARD -->
+        <div id="module-dashboard" class="spa-module">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+             <div class="card p-6 flex items-center gap-4 border-l-4 border-secondary">
+                 <div class="p-3 bg-blue-100 text-secondary rounded-lg"><i class="fas fa-file-alt text-2xl"></i></div>
+                 <div><p class="text-sm text-gray-500 dark:text-gray-400">Total Dokumen</p><h3 id="stat-docs" class="text-2xl font-bold">0</h3></div>
+             </div>
+             <div class="card p-6 flex items-center gap-4 border-l-4 border-green-500">
+                 <div class="p-3 bg-green-100 text-green-600 rounded-lg"><i class="fas fa-check-circle text-2xl"></i></div>
+                 <div><p class="text-sm text-gray-500 dark:text-gray-400">Drive Sync Rate</p><h3 class="text-2xl font-bold">100%</h3></div>
+             </div>
           </div>
-          <div class="glass-panel p-6 flex flex-col">
-            <h3 class="font-bold mb-4">2. Live Preview</h3>
-            <div id="doc-preview" class="flex-1 p-4 border dark:border-gray-600 rounded bg-white text-black overflow-y-auto whitespace-pre-wrap font-mono text-sm">
-              Pilih template dan isi form untuk melihat preview.
+          <div class="card p-6">
+            <h3 class="font-bold mb-4">Distribusi Kategori Dokumen</h3>
+            <div id="chart-container" style="height: 350px;" class="w-full"></div>
+          </div>
+        </div>
+
+        <!-- GENERATOR -->
+        <div id="module-generator" class="spa-module hidden">
+          <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div class="xl:col-span-5 flex flex-col gap-6">
+              <div class="card p-6 border-t-4 border-primary">
+                <h3 class="font-bold mb-4 text-lg border-b dark:border-gray-700 pb-2"><i class="fas fa-sliders-h mr-2"></i> Form Engine Parameter</h3>
+                <div class="mb-4">
+                  <label class="block text-sm font-medium mb-1">Judul Dokumen / Proyek</label>
+                  <input type="text" id="gen-title" class="input-field" placeholder="Contoh: Modul Payment Gateway" onkeyup="app.updatePreview()">
+                </div>
+                <div class="mb-4">
+                  <label class="block text-sm font-medium mb-1">Pilih Master Template</label>
+                  <select id="gen-template" class="input-field" onchange="app.renderDynamicForm()">
+                    <option value="">-- Pilih Template --</option>
+                  </select>
+                </div>
+                <!-- Dynamic Inputs Rendered Here -->
+                <div id="dynamic-inputs" class="space-y-4"></div>
+
+                <div class="mt-6 pt-4 border-t dark:border-gray-700">
+                  <label class="block text-sm font-medium mb-1 text-gray-500">Attachment Referensi (Optional)</label>
+                  <input type="file" id="gen-file" class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-secondary hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-white" accept="image/*,.pdf">
+                </div>
+                
+                <button onclick="app.executeGeneration()" id="btn-generate" class="btn btn-primary w-full mt-6 py-3"><i class="fas fa-rocket"></i> Compile & Sync to Drive</button>
+              </div>
+            </div>
+            <div class="xl:col-span-7 h-[80vh]">
+              <div class="card p-0 h-full flex flex-col bg-gray-100 dark:bg-gray-900 border-none shadow-none">
+                <div class="px-4 py-2 bg-gray-200 dark:bg-gray-800 text-xs font-mono text-gray-500 flex justify-between rounded-t-xl">
+                  <span>LIVE_PREVIEW.md</span><span>Parsing AST Engine</span>
+                </div>
+                <div id="gen-preview" class="flex-1 p-8 bg-white text-black font-mono text-sm overflow-y-auto whitespace-pre-wrap shadow-inner border dark:border-gray-700">
+                  // Pilih template untuk melihat preview realtime
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div id="section-templates" class="spa-section hidden glass-panel p-6">
-        <div class="flex justify-between mb-4">
-          <h3 class="font-bold">Manajemen Template (CMS)</h3>
-          <button onclick="app.openTemplateModal()" class="btn btn-primary"><i class="fas fa-plus"></i> Template Baru</button>
+        <!-- DOCUMENTS -->
+        <div id="module-documents" class="spa-module hidden card p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg"><i class="fas fa-folder-open mr-2 text-secondary"></i> Arsip Enterprise</h3>
+          </div>
+          <div id="grid-documents" class="ag-theme-alpine w-full transition-colors"></div>
         </div>
-        <div id="grid-templates" class="ag-theme-alpine w-full h-80 transition-colors"></div>
-      </div>
 
-      <div id="section-documents" class="spa-section hidden glass-panel p-6">
-        <h3 class="font-bold mb-4">Arsip Dokumen (Drive Sync)</h3>
-        <div id="grid-documents" class="ag-theme-alpine w-full h-96 transition-colors"></div>
-      </div>
+        <!-- TEMPLATES CMS -->
+        <div id="module-templates" class="spa-module hidden card p-6">
+           <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg"><i class="fas fa-code mr-2 text-secondary"></i> Schema CMS (Admin Only)</h3>
+            <button onclick="app.openModal('modal-template')" class="btn btn-primary text-sm"><i class="fas fa-plus"></i> Schema Baru</button>
+          </div>
+          <div id="grid-templates" class="ag-theme-alpine w-full transition-colors"></div>
+        </div>
 
+      </div>
     </main>
   </div>
 
-  <!-- Modal Template -->
-  <div id="modal-template" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div class="glass-panel w-full max-w-2xl p-6 relative">
-      <button onclick="document.getElementById('modal-template').classList.add('hidden')" class="absolute top-4 right-4 text-gray-500 hover:text-red-500"><i class="fas fa-times"></i></button>
-      <h3 class="font-bold mb-4">Tambah Template Baru</h3>
-      <input type="text" id="tpl-name" placeholder="Nama (ex: Project Plan)" class="w-full mb-4 p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
-      <p class="text-xs text-gray-500 mb-2">Gunakan format <code class="bg-gray-200 dark:bg-gray-600 px-1 rounded">{{NAMA_VARIABEL}}</code> untuk field dinamis.</p>
-      <textarea id="tpl-content" rows="10" placeholder="Maksud dan tujuan: {{TUJUAN}}..." class="w-full mb-4 p-2 border rounded dark:bg-gray-700 dark:border-gray-600"></textarea>
-      <button onclick="app.saveTemplate()" class="btn btn-primary w-full">Simpan Template</button>
+  <!-- MODAL TEMPLATE CMS -->
+  <div id="modal-template" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="card w-full max-w-3xl p-6 relative">
+      <button onclick="app.closeModal('modal-template')" class="absolute top-4 right-4 text-gray-400 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
+      <h3 class="font-bold text-xl mb-4 border-b dark:border-gray-700 pb-2">Create New Schema</h3>
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Kode (Ex: RFC, BRD)</label>
+          <input type="text" id="tpl-code" class="input-field" placeholder="RFC">
+        </div>
+        <div>
+           <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Kategori</label>
+           <select id="tpl-cat" class="input-field"><option value="Architecture">Architecture</option><option value="Business">Business</option><option value="Technical">Technical</option></select>
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Nama Template</label>
+        <input type="text" id="tpl-name" class="input-field" placeholder="RFC Architecture Baseline">
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs font-bold mb-1 uppercase text-gray-500 flex justify-between">
+          <span>Konten Editor (Markdown / Text)</span>
+          <span class="text-secondary normal-case font-mono bg-blue-50 dark:bg-gray-800 px-2 rounded">Gunakan tag {{NAMA_VARIABEL}}</span>
+        </label>
+        <textarea id="tpl-content" rows="12" class="input-field font-mono text-sm leading-relaxed" placeholder="# Judul Dokumen\nTarget: {{TARGET_RILIS}}\n..."></textarea>
+      </div>
+      <button onclick="app.saveTemplate()" class="btn btn-primary w-full"><i class="fas fa-save"></i> Simpan Schema Ke Database</button>
     </div>
   </div>
 
-  <!-- Load Minified Logic -->
+  <!-- Logic Layer -->
   <script src="app.min.js"></script>
 </body>
 </html>
