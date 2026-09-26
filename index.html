@@ -8,11 +8,11 @@
 <script>tailwind.config = { darkMode: 'class' }</script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31/styles/ag-grid.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31/styles/ag-theme-quartz.css">
-<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31/dist/ag-grid-community.min.noStyle.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/ag-charts-community@11/dist/umd/ag-charts-community.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31/dist/ag-grid-community.min.noStyle.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/ag-charts-community@11/dist/umd/ag-charts-community.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css">
-<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js" defer></script>
 <style>
   @media print { .no-print{display:none!important} body{background:#fff!important} #printArea{box-shadow:none!important;margin:0!important} }
   .page-a4{width:210mm;min-height:297mm;margin:0 auto;background:#fff;box-shadow:0 0 10px rgba(0,0,0,.15)}
@@ -28,12 +28,25 @@
   .richtext-content ul{list-style:disc;padding-left:1.5em;margin:.25em 0}
   .richtext-content ol{list-style:decimal;padding-left:1.5em;margin:.25em 0}
   .richtext-content p{margin:.25em 0}
+  .dark .swal2-popup{background:#1f2937;color:#f3f4f6}
+  .dark .swal2-title,.dark .swal2-html-container{color:#f3f4f6}
+  .dark .swal2-toast{background:#1f2937!important}
+  .dark .swal2-toast .swal2-title{color:#f3f4f6!important}
+  .dark .swal2-icon.swal2-warning{border-color:#f59e0b;color:#f59e0b}
 </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 transition-colors">
 
+<!-- BOOT SPLASH (mencegah kilas halaman login saat refresh) -->
+<div id="bootSplash" class="min-h-screen flex items-center justify-center">
+  <div class="flex flex-col items-center gap-3">
+    <div class="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-xl font-bold animate-pulse">D</div>
+    <div class="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+  </div>
+</div>
+
 <!-- LOGIN VIEW -->
-<div id="loginView" class="min-h-screen flex items-center justify-center p-4">
+<div id="loginView" class="hidden min-h-screen flex items-center justify-center p-4">
   <div class="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
     <div class="text-center mb-6">
       <div id="loginLogo" class="w-14 h-14 mx-auto rounded-xl bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold mb-3">D</div>
@@ -222,6 +235,8 @@ let CURRENT_FORM_TYPE = null;
 let QUILL_INSTANCES = {};
 let gridDocumentsApi = null;
 let gridUsersApi = null;
+let chartStatusInstance = null;
+let chartTypeInstance = null;
 const $ = id => document.getElementById(id);
 async function api(action, payload) {
   payload = payload || {};
@@ -261,16 +276,20 @@ async function init() {
   }
 }
 function showLogin() {
+  $('bootSplash').classList.add('hidden');
   $('loginView').classList.remove('hidden');
   $('mainView').classList.add('hidden');
 }
 async function afterLogin() {
+  $('bootSplash').classList.add('hidden');
   $('loginView').classList.add('hidden');
   $('mainView').classList.remove('hidden');
   $('userBadge').textContent = CURRENT_USER.fullName + ' (' + CURRENT_USER.role + ')';
-  try { CMS = await api('getCmsConfig', {}); applyCmsBranding(); } catch (e) {}
   buildSidebar();
-  try { DOC_TYPES = await api('getDocumentTypes', {}); } catch (e) { DOC_TYPES = []; }
+  const [cmsResult, typesResult] = await Promise.allSettled([api('getCmsConfig', {}), api('getDocumentTypes', {})]);
+  CMS = cmsResult.status === 'fulfilled' ? cmsResult.value : {};
+  applyCmsBranding();
+  DOC_TYPES = typesResult.status === 'fulfilled' ? typesResult.value : [];
   populateDocTypeSelects();
   navigate('dashboard');
 }
@@ -289,6 +308,7 @@ function toggleDark() {
   document.documentElement.classList.toggle('dark');
   localStorage.setItem('docgen_dark', document.documentElement.classList.contains('dark') ? '1' : '0');
   syncGridTheme();
+  if (!$('view-dashboard').classList.contains('hidden')) loadDashboard();
 }
 function syncGridTheme() {
   const isDark = document.documentElement.classList.contains('dark');
@@ -377,7 +397,11 @@ function navigate(view) {
     $('view-' + v).classList.toggle('hidden', v !== view);
   });
   $('pageTitle').textContent = VIEW_TITLES[view] || '';
-  document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('bg-indigo-100', b.dataset.nav === view));
+  document.querySelectorAll('[data-nav]').forEach(b => {
+    const active = b.dataset.nav === view;
+    b.classList.toggle('bg-indigo-100', active);
+    b.classList.toggle('dark:bg-indigo-900/50', active);
+  });
   $('sidebar').classList.add('-translate-x-full'); $('sidebarOverlay').classList.add('hidden');
   if (view === 'dashboard') loadDashboard();
   if (view === 'documents') loadDocumentsGrid();
@@ -396,15 +420,24 @@ async function loadDashboard() {
       ['Review', stats.byStatus.Review || 0, 'bg-amber-500'],
       ['Approved', (stats.byStatus.Approved || 0) + (stats.byStatus.Released || 0), 'bg-emerald-600']
     ].map(([label, val, color]) => `<div class="rounded-xl p-4 text-white ${color}"><div class="text-2xl font-bold">${val}</div><div class="text-xs opacity-90">${label}</div></div>`).join('');
-    agCharts.AgCharts.create({
+    const isDark = document.documentElement.classList.contains('dark');
+    const chartTheme = isDark ? 'ag-default-dark' : 'ag-default';
+    if (chartStatusInstance) { chartStatusInstance.destroy(); chartStatusInstance = null; }
+    if (chartTypeInstance) { chartTypeInstance.destroy(); chartTypeInstance = null; }
+    $('chartByStatus').innerHTML = ''; $('chartByType').innerHTML = '';
+    chartStatusInstance = agCharts.AgCharts.create({
       container: $('chartByStatus'),
+      theme: chartTheme,
       title: { text: 'Dokumen per Status' },
+      background: { fill: 'transparent' },
       data: Object.keys(stats.byStatus).map(k => ({ status: k, count: stats.byStatus[k] })),
       series: [{ type: 'pie', angleKey: 'count', labelKey: 'status' }]
     });
-    agCharts.AgCharts.create({
+    chartTypeInstance = agCharts.AgCharts.create({
       container: $('chartByType'),
+      theme: chartTheme,
       title: { text: 'Dokumen per Jenis' },
+      background: { fill: 'transparent' },
       data: Object.keys(stats.byType).map(k => ({ type: k, count: stats.byType[k] })),
       series: [{ type: 'bar', xKey: 'type', yKey: 'count' }]
     });
