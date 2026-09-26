@@ -11,10 +11,23 @@
 <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31/dist/ag-grid-community.min.noStyle.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/ag-charts-community@11/dist/umd/ag-charts-community.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css">
+<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 <style>
   @media print { .no-print{display:none!important} body{background:#fff!important} #printArea{box-shadow:none!important;margin:0!important} }
   .page-a4{width:210mm;min-height:297mm;margin:0 auto;background:#fff;box-shadow:0 0 10px rgba(0,0,0,.15)}
   ::-webkit-scrollbar{width:8px;height:8px} ::-webkit-scrollbar-thumb{background:#9ca3af;border-radius:4px}
+  .ql-editor{min-height:120px;font-size:0.875rem}
+  .dark .ql-toolbar{background:#374151;border-color:#4b5563}
+  .dark .ql-container{background:#374151;border-color:#4b5563}
+  .dark .ql-editor{color:#f3f4f6}
+  .dark .ql-snow .ql-stroke{stroke:#d1d5db}
+  .dark .ql-snow .ql-fill{fill:#d1d5db}
+  .dark .ql-snow .ql-picker{color:#d1d5db}
+  .dark .ql-snow .ql-picker-options{background:#374151}
+  .richtext-content ul{list-style:disc;padding-left:1.5em;margin:.25em 0}
+  .richtext-content ol{list-style:decimal;padding-left:1.5em;margin:.25em 0}
+  .richtext-content p{margin:.25em 0}
 </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 transition-colors">
@@ -198,7 +211,7 @@
   </div>
 </div>
 
-<script>window.GAS_URL = "https://script.google.com/macros/s/AKfycbypnbItNQcr4oZ5exqClajnPJYDt5RCc--dyjnv88DslDYX-PHpD65F9hQwkYjOSV-nsA/exec";</script>
+<script>window.GAS_URL = "https://script.google.com/macros/s/AKfycbzUtlqorhQ5TU_37uCe6Ey7ILaUimOUlcEY9Yt1FU_S87-avcW2dIXGhSwdwEaMIa94Dg/exec";</script>
 <script>
 let TOKEN = localStorage.getItem('docgen_token') || '';
 let CURRENT_USER = null;
@@ -206,6 +219,7 @@ let DOC_TYPES = [];
 let CMS = {};
 let CURRENT_DOC = null; // full doc object being edited/previewed
 let CURRENT_FORM_TYPE = null;
+let QUILL_INSTANCES = {};
 let gridDocumentsApi = null;
 let gridUsersApi = null;
 const $ = id => document.getElementById(id);
@@ -269,10 +283,21 @@ function applyCmsBranding() {
 function applyDarkModePref() {
   const pref = localStorage.getItem('docgen_dark');
   if (pref === '1') document.documentElement.classList.add('dark');
+  syncGridTheme();
 }
 function toggleDark() {
   document.documentElement.classList.toggle('dark');
   localStorage.setItem('docgen_dark', document.documentElement.classList.contains('dark') ? '1' : '0');
+  syncGridTheme();
+}
+function syncGridTheme() {
+  const isDark = document.documentElement.classList.contains('dark');
+  ['gridDocuments', 'gridUsers'].forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    el.classList.toggle('ag-theme-quartz-dark', isDark);
+    el.classList.toggle('ag-theme-quartz', !isDark);
+  });
 }
 function bindStaticEvents() {
   $('btnLogin').onclick = doLogin;
@@ -389,8 +414,8 @@ async function loadDashboard() {
   } catch (e) { loading(false); toast('error', e.message); }
 }
 function statusBadge(status) {
-  return { Draft: 'bg-gray-200 text-gray-700', Review: 'bg-amber-100 text-amber-700', Approved: 'bg-emerald-100 text-emerald-700',
-    Rejected: 'bg-red-100 text-red-700', Released: 'bg-blue-100 text-blue-700' }[status] || 'bg-gray-200';
+  return { Draft: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200', Review: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300', Approved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+    Rejected: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300', Released: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' }[status] || 'bg-gray-200 dark:bg-gray-700';
 }
 function populateDocTypeSelects() {
   const opts = DOC_TYPES.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
@@ -399,6 +424,7 @@ function populateDocTypeSelects() {
 }
 async function loadDocumentsGrid() {
   loading(true);
+  syncGridTheme();
   try {
     const docs = await api('getDocuments', { docTypeId: $('filterDocType').value, status: $('filterStatus').value });
     loading(false);
@@ -411,14 +437,14 @@ async function loadDocumentsGrid() {
       { field: 'updatedAt', headerName: 'Diperbarui', width: 160, valueFormatter: p => p.value ? new Date(p.value).toLocaleString('id-ID') : '' },
       { headerName: 'Aksi', width: 160, cellRenderer: p => {
           const div = document.createElement('div'); div.className = 'flex gap-1 py-1';
-          const btnView = document.createElement('button'); btnView.textContent = '👁'; btnView.className = 'px-2 rounded bg-gray-200';
+          const btnView = document.createElement('button'); btnView.textContent = '👁'; btnView.className = 'px-2 rounded bg-gray-200 dark:bg-gray-600';
           btnView.onclick = () => openPreview(p.data.id);
           div.appendChild(btnView);
           if (CURRENT_USER.role !== 'Viewer') {
-            const btnEdit = document.createElement('button'); btnEdit.textContent = '✏️'; btnEdit.className = 'px-2 rounded bg-blue-100';
+            const btnEdit = document.createElement('button'); btnEdit.textContent = '✏️'; btnEdit.className = 'px-2 rounded bg-blue-100 dark:bg-blue-900/40';
             btnEdit.onclick = () => openForm(p.data.id);
             div.appendChild(btnEdit);
-            const btnDel = document.createElement('button'); btnDel.textContent = '🗑'; btnDel.className = 'px-2 rounded bg-red-100';
+            const btnDel = document.createElement('button'); btnDel.textContent = '🗑'; btnDel.className = 'px-2 rounded bg-red-100 dark:bg-red-900/40';
             btnDel.onclick = () => deleteDocument(p.data.id);
             div.appendChild(btnDel);
           }
@@ -459,6 +485,7 @@ async function loadDocForEdit(docId) {
 function renderFormSections(docTypeId, data) {
   const type = DOC_TYPES.find(t => t.id === docTypeId);
   CURRENT_FORM_TYPE = type;
+  QUILL_INSTANCES = {};
   const container = $('formSections'); container.innerHTML = '';
   if (!type) return;
   type.sections.forEach(sec => {
@@ -467,8 +494,10 @@ function renderFormSections(docTypeId, data) {
     const label = `<label class="text-sm font-semibold block mb-1">${sec.label}${sec.required ? ' *' : ''}</label>`;
     let field = '';
     const val = data ? data[sec.id] : undefined;
-    if (sec.type === 'textarea' || sec.type === 'richtext') {
+    if (sec.type === 'textarea') {
       field = `<textarea data-field="${sec.id}" rows="4" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600 text-sm">${val || ''}</textarea>`;
+    } else if (sec.type === 'richtext') {
+      field = `<div data-field="${sec.id}" data-richtext="1" class="bg-white dark:bg-gray-700 rounded-lg"><div class="quill-editor"></div></div>`;
     } else if (sec.type === 'date') {
       field = `<input type="date" data-field="${sec.id}" value="${val || ''}" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600 text-sm">`;
     } else if (sec.type === 'select') {
@@ -492,6 +521,15 @@ function renderFormSections(docTypeId, data) {
     }
     wrap.innerHTML = label + field;
     container.appendChild(wrap);
+    if (sec.type === 'richtext') {
+      const editorEl = wrap.querySelector('.quill-editor');
+      const quill = new Quill(editorEl, {
+        theme: 'snow',
+        modules: { toolbar: [['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }], ['clean']] }
+      });
+      if (val) quill.clipboard.dangerouslyPasteHTML(val);
+      QUILL_INSTANCES[sec.id] = quill;
+    }
   });
 }
 function tableRowHtml(sec, row) {
@@ -507,7 +545,9 @@ function collectFormData() {
   const data = {};
   if (!CURRENT_FORM_TYPE) return data;
   CURRENT_FORM_TYPE.sections.forEach(sec => {
-    if (sec.type === 'table') {
+    if (sec.type === 'richtext') {
+      data[sec.id] = QUILL_INSTANCES[sec.id] ? QUILL_INSTANCES[sec.id].root.innerHTML : '';
+    } else if (sec.type === 'table') {
       const wrap = document.querySelector(`[data-field="${sec.id}"][data-table="1"]`);
       const rows = [...wrap.querySelectorAll('tbody tr')].map(tr => {
         const obj = {};
@@ -583,6 +623,8 @@ function renderPreview(doc) {
     } else if (sec.type === 'signature') {
       const sig = val || {};
       html += `<div class="text-xs space-y-4 mt-2"><p>Nama: ${sig.name || '________________'}</p><p>Jabatan: ${sig.role || '________________'}</p><p>Tanggal: ${sig.date || '________________'}</p><div class="mt-8">Tanda tangan:</div><div class="border-b w-48 mt-8"></div></div>`;
+    } else if (sec.type === 'richtext') {
+      html += `<div class="richtext-content" style="font-size:${fontSize}pt">${val || '<p class="text-gray-400">-</p>'}</div>`;
     } else {
       html += `<p class="whitespace-pre-line" style="font-size:${fontSize}pt">${val || '-'}</p>`;
     }
@@ -618,11 +660,11 @@ async function loadDocTypeList() {
       <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow">
         <div class="flex justify-between items-start">
           <div><div class="font-bold text-sm">${t.name}</div><div class="text-xs text-gray-500">${t.code} • ${t.category} • ${t.sections.length} field</div></div>
-          <span class="text-xs px-2 py-0.5 rounded-full ${t.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}">${t.isActive ? 'Aktif' : 'Nonaktif'}</span>
+          <span class="text-xs px-2 py-0.5 rounded-full ${t.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}">${t.isActive ? 'Aktif' : 'Nonaktif'}</span>
         </div>
         <div class="flex gap-2 mt-3">
-          <button class="text-xs px-3 py-1 bg-blue-100 rounded-lg" onclick="openDocTypeModal('${t.id}')">Edit</button>
-          <button class="text-xs px-3 py-1 bg-red-100 rounded-lg" onclick="deleteDocType('${t.id}')">Hapus</button>
+          <button class="text-xs px-3 py-1 bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300 rounded-lg" onclick="openDocTypeModal('${t.id}')">Edit</button>
+          <button class="text-xs px-3 py-1 bg-red-100 dark:bg-red-900/40 dark:text-red-300 rounded-lg" onclick="deleteDocType('${t.id}')">Hapus</button>
         </div>
       </div>`).join('') || '<p class="text-sm text-gray-400">Belum ada jenis dokumen</p>';
   } catch (e) { loading(false); toast('error', e.message); }
@@ -697,6 +739,7 @@ async function deleteDocType(id) {
 }
 async function loadUsersGrid() {
   loading(true);
+  syncGridTheme();
   try {
     const users = await api('getUsers', {});
     loading(false);
@@ -707,7 +750,7 @@ async function loadUsersGrid() {
       { field: 'role', headerName: 'Role', width: 100 },
       { field: 'isActive', headerName: 'Aktif', width: 80, valueFormatter: p => p.value ? '✅' : '❌' },
       { headerName: 'Aksi', width: 100, cellRenderer: p => {
-          const btn = document.createElement('button'); btn.textContent = '✏️ Edit'; btn.className = 'text-xs px-2 py-1 bg-blue-100 rounded';
+          const btn = document.createElement('button'); btn.textContent = '✏️ Edit'; btn.className = 'text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300 rounded';
           btn.onclick = () => openUserModal(p.data); return btn;
         } }
     ];
