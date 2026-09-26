@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31/styles/ag-grid.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31/styles/ag-theme-quartz.css">
 <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31/dist/ag-grid-community.min.noStyle.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/ag-charts-community@10/dist/umd/ag-charts-community.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ag-charts-community@11/dist/umd/ag-charts-community.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
   @media print { .no-print{display:none!important} body{background:#fff!important} #printArea{box-shadow:none!important;margin:0!important} }
@@ -371,13 +371,13 @@ async function loadDashboard() {
       ['Review', stats.byStatus.Review || 0, 'bg-amber-500'],
       ['Approved', (stats.byStatus.Approved || 0) + (stats.byStatus.Released || 0), 'bg-emerald-600']
     ].map(([label, val, color]) => `<div class="rounded-xl p-4 text-white ${color}"><div class="text-2xl font-bold">${val}</div><div class="text-xs opacity-90">${label}</div></div>`).join('');
-    AgCharts.create({
+    agCharts.AgCharts.create({
       container: $('chartByStatus'),
       title: { text: 'Dokumen per Status' },
       data: Object.keys(stats.byStatus).map(k => ({ status: k, count: stats.byStatus[k] })),
       series: [{ type: 'pie', angleKey: 'count', labelKey: 'status' }]
     });
-    AgCharts.create({
+    agCharts.AgCharts.create({
       container: $('chartByType'),
       title: { text: 'Dokumen per Jenis' },
       data: Object.keys(stats.byType).map(k => ({ type: k, count: stats.byType[k] })),
